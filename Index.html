@@ -1,16 +1,340 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-	<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-	<title></title>
-	<meta name="generator" content="LibreOffice 26.2.2.2 (Windows)"/>
-	<meta name="created" content="2026-11-03T11:34:14.609771000"/>
-	<meta name="changed" content="2026-11-03T11:34:26.944611000"/>
-</head>
-<body lang="fr-FR" dir="ltr"><h1 style="margin-top: 0cm">Coucou</h1>
-<p><br/>
-<br/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ma To-Do List</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-</p>
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 16px;
+  }
+
+  .app {
+    background: #fff;
+    width: 100%;
+    max-width: 520px;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 20px 40px rgba(0,0,0,.2);
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+  }
+
+  /* --- Formulaire --- */
+  .form { display: flex; gap: 8px; margin-bottom: 18px; }
+
+  input[type="text"] {
+    flex: 1;
+    padding: 12px 14px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .2s;
+  }
+  input[type="text"]:focus { border-color: #667eea; }
+
+  button { cursor: pointer; border: none; font-family: inherit; }
+
+  .btn-add {
+    background: #667eea;
+    color: #fff;
+    padding: 0 20px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: background .2s;
+  }
+  .btn-add:hover { background: #5568d3; }
+
+  /* --- Filtres --- */
+  .filters { display: flex; gap: 6px; margin-bottom: 14px; }
+
+  .filters button {
+    flex: 1;
+    padding: 8px;
+    border-radius: 8px;
+    background: #f0f0f5;
+    color: #555;
+    font-size: .85rem;
+    font-weight: 600;
+    transition: all .2s;
+  }
+  .filters button.active { background: #667eea; color: #fff; }
+
+  /* --- Liste --- */
+  ul { list-style: none; }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #f8f8fb;
+    margin-bottom: 8px;
+  }
+
+  li input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #667eea;
+    flex-shrink: 0;
+  }
+
+  .text {
+    flex: 1;
+    font-size: 1rem;
+    color: #333;
+    word-break: break-word;
+    cursor: pointer;
+  }
+
+  li.done .text { text-decoration: line-through; color: #aaa; }
+
+  .btn-del {
+    background: transparent;
+    color: #e74c3c;
+    font-size: 1.1rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    line-height: 1;
+    opacity: .6;
+    transition: all .2s;
+  }
+  .btn-del:hover { opacity: 1; background: #ffe5e2; }
+
+  /* --- Message liste vide --- */
+  li.empty {
+    display: block;
+    background: transparent;
+    text-align: center;
+    color: #aaa;
+    padding: 24px 0;
+    font-size: .95rem;
+  }
+
+  /* --- Pied de page --- */
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    font-size: .85rem;
+    color: #777;
+  }
+
+  .btn-clear {
+    background: transparent;
+    color: #e74c3c;
+    font-size: .85rem;
+    font-weight: 600;
+  }
+  .btn-clear:hover { text-decoration: underline; }
+
+  /* --- Champ d'édition --- */
+  .edit-input {
+    flex: 1;
+    padding: 6px 8px;
+    border: 2px solid #667eea;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: inherit;
+    outline: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <h1>📝 Ma To-Do List</h1>
+
+  <form class="form" id="form">
+    <input type="text" id="input" placeholder="Ajouter une tâche..." autocomplete="off">
+    <button class="btn-add" type="submit">Ajouter</button>
+  </form>
+
+  <div class="filters">
+    <button data-filter="all" class="active">Toutes</button>
+    <button data-filter="active">À faire</button>
+    <button data-filter="done">Terminées</button>
+  </div>
+
+  <ul id="list"></ul>
+
+  <div class="footer">
+    <span id="count">0 tâche restante</span>
+    <button class="btn-clear" id="clear">Supprimer les terminées</button>
+  </div>
+</div>
+
+<script>
+  const form     = document.getElementById('form');
+  const input    = document.getElementById('input');
+  const list     = document.getElementById('list');
+  const countEl  = document.getElementById('count');
+  const clearBtn = document.getElementById('clear');
+
+  // On récupère les tâches sauvegardées (ou un tableau vide)
+  let tasks  = JSON.parse(localStorage.getItem('todo-tasks') || '[]');
+  let filter = 'all';
+
+  function save() {
+    localStorage.setItem('todo-tasks', JSON.stringify(tasks));
+  }
+
+  /* ---------- Affichage ---------- */
+  function render() {
+    list.innerHTML = '';
+
+    const visible = tasks.filter(t =>
+      filter === 'all'    ? true :
+      filter === 'active' ? !t.done :
+                            t.done
+    );
+
+    // Message si aucune tâche
+    if (visible.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'empty';
+      li.textContent =
+        filter === 'all'    ? 'Aucune tâche pour le moment 🙂' :
+        filter === 'active' ? 'Aucune tâche à faire 🎉' :
+                              'Aucune tâche terminée';
+      list.appendChild(li);
+    }
+
+    // Création de chaque tâche
+    visible.forEach(task => {
+      const li = document.createElement('li');
+      if (task.done) li.classList.add('done');
+
+      // Case à cocher
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = task.done;
+      cb.addEventListener('change', () => {
+        task.done = cb.checked;
+        save();
+        render();
+      });
+
+      // Texte (double-clic pour modifier)
+      const span = document.createElement('span');
+      span.className = 'text';
+      span.textContent = task.text;
+      span.title = 'Double-cliquez pour modifier';
+      span.addEventListener('dblclick', () => startEdit(li, span, task));
+
+      // Bouton supprimer
+      const del = document.createElement('button');
+      del.className = 'btn-del';
+      del.textContent = '✕';
+      del.title = 'Supprimer';
+      del.addEventListener('click', () => {
+        tasks = tasks.filter(t => t.id !== task.id);
+        save();
+        render();
+      });
+
+      li.append(cb, span, del);
+      list.appendChild(li);
+    });
+
+    // Compteur
+    const remaining = tasks.filter(t => !t.done).length;
+    countEl.textContent = remaining + (remaining > 1 ? ' tâches restantes' : ' tâche restante');
+  }
+
+  /* ---------- Édition du texte ---------- */
+  function startEdit(li, span, task) {
+    const editInput = document.createElement('input');
+    editInput.type = 'text';
+    editInput.className = 'edit-input';
+    editInput.value = task.text;
+
+    li.replaceChild(editInput, span);
+    editInput.focus();
+    editInput.select();
+
+    let finished = false;
+
+    function finish(ok) {
+      if (finished) return;
+      finished = true;
+
+      if (ok) {
+        const value = editInput.value.trim();
+        if (value) {
+          task.text = value;
+        } else {
+          tasks = tasks.filter(t => t.id !== task.id); // texte vide = suppression
+        }
+        save();
+      }
+      render();
+    }
+
+    editInput.addEventListener('blur', () => finish(true));
+    editInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  { e.preventDefault(); finish(true); }
+      if (e.key === 'Escape') { finish(false); }
+    });
+  }
+
+  /* ---------- Ajouter une tâche ---------- */
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+
+    tasks.push({
+      id: Date.now() + Math.random(),
+      text: text,
+      done: false
+    });
+
+    input.value = '';
+    input.focus();
+    save();
+    render();
+  });
+
+  /* ---------- Filtres ---------- */
+  document.querySelectorAll('.filters button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      filter = btn.dataset.filter;
+      document.querySelectorAll('.filters button')
+        .forEach(b => b.classList.toggle('active', b === btn));
+      render();
+    });
+  });
+
+  /* ---------- Supprimer les tâches terminées ---------- */
+  clearBtn.addEventListener('click', () => {
+    tasks = tasks.filter(t => !t.done);
+    save();
+    render();
+  });
+
+  /* ---------- Démarrage ---------- */
+  render();
+</script>
+
 </body>
 </html>
